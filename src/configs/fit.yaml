@@ -10,10 +10,10 @@ resume:
   last: true
   best: false
   clobber_hparams: false
-  #project: ${wandb.project}
+  project: ${wandb.project}
   log_dir: ${wandb.log_dir}
   model_only: false
-logger: false                          # edited
+logger: wandb                          # edited
 wandb:
   save_code: true
   offline: false
@@ -26,7 +26,7 @@ trainer:
   gpus: 8
   precision: 16
   plugins: null
-  max_steps: 2                      # edited
+  max_steps: 10000000                      # edited
   profiler: simple
   num_sanity_val_steps: 0
   log_every_n_steps: 200

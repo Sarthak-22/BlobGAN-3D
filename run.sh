@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=2,3 python src/run.py +experiment=[blobgan,local,jitter] dataset.dataloader.batch_size=16 +model.log_fid_every_epoch=False dataset=imagefolder +dataset.path=datasets/CLEVR_v1.0/Camera.001 model.n_features=3

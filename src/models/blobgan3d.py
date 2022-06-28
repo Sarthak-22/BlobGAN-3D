@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["BlobGAN"]
+__all__ = ["BlobGAN3D"]
 
 import random
 from dataclasses import dataclass
@@ -48,7 +48,7 @@ class Lossλs:
 
 
 @dataclass(eq=False)
-class BlobGAN(BaseModule):
+class BlobGAN3D(BaseModule):
     # Modules
     generator: FromConfig[nn.Module]
     layout_net: FromConfig[nn.Module]
@@ -181,7 +181,11 @@ class BlobGAN(BaseModule):
             **kwargs):
         assert (z is not None) or (layout is not None)
         kwargs['return_metadata'] = ret_layout             # ret_layout = True
-        layout = self.generate_layout(z, metadata=layout, ema=ema, **kwargs)
+        #layout = self.generate_layout(z, metadata=layout, ema=ema, **kwargs)
+
+        # Ignore a dimension for 2D splatting (ignore z dimension - top view)
+        layout = self.generate_layout(z, metadata=layout, ema=ema, ignore_dim=0, **kwargs)       
+
         gen_input = {
             'input': layout['feature_grid'],
             'styles': {k: layout[k] for k in SPLAT_KEYS} if self.spatial_style else z,
@@ -389,6 +393,7 @@ class BlobGAN(BaseModule):
         return ret
 
     def generate_layout(self, noise: Optional[Tensor] = None, return_metadata: bool = False, ema: bool = False,
+                        ignore_dim: Optional[int] = None,
                         size: Optional[int] = None, viz: bool = False,
                         num_features: Optional[int] = None,
                         metadata: Optional[Dict[str, Tensor]] = None,
@@ -425,24 +430,40 @@ class BlobGAN(BaseModule):
                 except AttributeError:
                     self.get_mean_latent(ema=ema)
                     noise = (self.mean_latent * truncate) + (noise * (1 - truncate))
-            metadata = layout_net(noise, num_features, mlp_idx)                   
+            metadata3d = layout_net(noise, num_features, mlp_idx)                   
 
         try:
             G = self.generator
         except AttributeError:
             G = self.generator_ema
 
-        ret = self.splat_features(**metadata, size=size or G.size_in, viz_size=viz_size or G.size,
+        if ignore_dim is not None:
+            projection_map = {0:metadata3d['xyz'][...,1:], 1:metadata3d['xyz'][...,::2], 2:metadata3d['xyz'][...,:2]}
+            covs_map = {0:torch.cat((metadata3d['covs'][...,2:4], metadata3d['covs'][...,4:6]), dim=-1), 1:torch.cat((metadata3d['covs'][...,:2],metadata3d['covs'][...,6:8]), dim=-1), 2:torch.cat((metadata3d['covs'][...,2:4]/metadata3d['covs'][...,:2],metadata3d['covs'][...,8:10]), dim=-1)}
+
+            metadata2d = {
+                'xs':projection_map[ignore_dim][...,0],          # (4,3)
+                'ys':projection_map[ignore_dim][...,1],          # (4,3)
+                'sizes':metadata3d['sizes'],                     # (4,3)
+                'covs':covs_map[ignore_dim],                     # (4,3,4)  
+                'features':metadata3d['features'],               # (4,4,768)
+                'spatial_style':metadata3d['spatial_style'],     # (4,4,512)
+            }
+        else:
+            raise Exception('Input the dimension to ignore for 2D splatting')
+
+
+        ret = self.splat_features(**metadata2d, size=size or G.size_in, viz_size=viz_size or G.size,
                                   viz=viz, return_metadata=return_metadata, score_size=score_size or (size or G.size),
                                   pyramid=True,
                                   **kwargs)
 
         if self.spatial_style:
-            ret['spatial_style'] = metadata['spatial_style']
-        if 'noise' in metadata:
-            ret['noise'] = metadata['noise']
-        if 'h_stdev' in metadata:
-            ret['h_stdev'] = metadata['h_stdev']
+            ret['spatial_style'] = metadata2d['spatial_style']
+        if 'noise' in metadata2d:
+            ret['noise'] = metadata2d['noise']
+        if 'h_stdev' in metadata2d:
+            ret['h_stdev'] = metadata2d['h_stdev']
         return ret
 
     def get_mean_latent(self, n_trunc: int = 10000, ema=True):
@@ -476,7 +497,10 @@ class BlobGAN(BaseModule):
         losses = dict()
 
         log_images = run_at_step(self.trainer.global_step, self.log_images_every_n_steps)   # decides whether to log images at a given step (%200=0)
+        
+        # Ignore z dimension for top plane projection
         layout, gen_imgs, latents = self.gen(z, ret_layout=True, ret_latents=True, viz=log_images)
+
         if latents is not None and not self.spatial_style:
             if latents.ndim == 3:
                 latents = latents[0]

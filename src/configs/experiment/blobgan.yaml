@@ -5,7 +5,7 @@ defaults:
 checkpoint:
   every_n_train_steps: 1500
 wandb:
-  name: BlobGAN
+  name: BlobGAN3D
 dataset:
   category: bedroom
   resolution: ${model.resolution}
@@ -13,11 +13,11 @@ dataset:
     batch_size: 16
     drop_last: true
 model:
-  name: BlobGAN
+  name: BlobGAN3D
   lr: 0.002
   dim: 512
   noise_dim: 512
-  resolution: 256
+  resolution: 128
   lambda: # Needed for convenience since can't input λ on command line
     D_real: 1
     D_fake: 1
@@ -38,7 +38,7 @@ model:
     spatial_style: ${model.spatial_style}
     size: ${model.resolution}
   layout_net:
-    name: models.networks.layoutnet.LayoutGenerator
+    name: models.networks.layoutnet3D.LayoutGenerator
     n_features_max: ${model.n_features_max}
     feature_dim: 768
     style_dim: ${model.dim}
@@ -53,7 +53,7 @@ model:
   log_images_every_n_steps: 1000
   n_features_min: ${model.n_features}
   n_features_max: ${model.n_features}
-  n_features: 10
+  n_features: 3
   spatial_style: true
 trainer:
   limit_val_batches: 0
