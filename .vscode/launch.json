@@ -1,0 +1,17 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["+experiment=[blobgan,local,jitter]","dataset.dataloader.batch_size=16","logger=False", "+model.log_fid_every_epoch=false","dataset=imagefolder","+dataset.path=datasets/CLEVR_v1.0/Camera.001"],
+            "justMyCode": true
+        }
+    ]
+}
