@@ -74,6 +74,7 @@ def run(config: DictConfig):
         logger=logger,
         callbacks=callbacks,
         checkpoint_callback=checkpoint_callback,
+        detect_anomaly=True,
         **config.trainer
     )
 

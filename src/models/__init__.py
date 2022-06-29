@@ -7,6 +7,7 @@ from models import networks
 from utils import to_dataclass_cfg
 # from .segmenter import *
 from .blobgan import *
+from .blobgan3d import *
 from .gan import *
 from .invertblobgan import *
 

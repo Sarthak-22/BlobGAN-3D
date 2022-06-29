@@ -1,14 +1,14 @@
 # @package _global_
 dataset:
-  basepath: datasets/CLEVR_v1.0/images  # Change to your path
+  basepath: datasets/CLEVR_v1.0/Camera.001  # Change to your path
 trainer:
   gpus: 1  # Change to your number of GPUs
 wandb:  # Fill in your settings
   group: Training
-  project: BlobGAN_debug
+  project: BlobGAN_3D
   entity: sarthakvora22
 
 
 
 # To run the blobgan model on clevr dataset
-# python src/run.py +experiment=[blobgan,local,jitter] +model.fid_stats_name=clevr dataset.dataloader.batch_size=48 +model.log_fid_every_epoch=False model.n_features=20
+# python src/run.py +experiment=[blobgan,local,jitter] +model.fid_stats_name=clevr dataset.dataloader.batch_size=48 +model.log_fid_every_epoch=False model.n_features=3
