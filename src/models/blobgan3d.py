@@ -458,9 +458,9 @@ class BlobGAN3D(BaseModule):
 
         if self.spatial_style:
             ret['spatial_style'] = metadata['spatial_style']
-        if 'noise' in metadata2d:
+        if 'noise' in metadata:
             ret['noise'] = metadata['noise']
-        if 'h_stdev' in metadata2d:
+        if 'h_stdev' in metadata:
             ret['h_stdev'] = metadata['h_stdev']
         return ret
 
