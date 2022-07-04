@@ -83,12 +83,12 @@ def for_canvas(img):
 
 
 def draw_labels(img, layout, T, colors, layout_i=0):
-    font = ImageFont.truetype('/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf', 20)
+    font = ImageFont.truetype('/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf', 10)
     img = Image.fromarray(img)
     draw = ImageDraw.Draw(img)
     mask = layout['sizes'][layout_i, 1:] > T
     idmap = torch.arange(len(mask))[mask]
-    blob = {k: layout[k][layout_i][mask].mul(255).tolist() for k in ('xs', 'ys')}
+    blob = {k: layout[k][layout_i][mask].mul(127).tolist() for k in ('xs', 'ys')}
     for i, (x, y) in enumerate(zip(blob['xs'], blob['ys'])):
         I = idmap[i]
         _, h = draw.textsize(str(I), font=font)
