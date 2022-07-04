@@ -184,7 +184,7 @@ class BlobGAN3D(BaseModule):
         #layout = self.generate_layout(z, metadata=layout, ema=ema, **kwargs)
 
         # Ignore a dimension for 2D splatting (ignore z dimension - top view)
-        layout = self.generate_layout(z, metadata=layout, ema=ema, ignore_dim=0, **kwargs)       
+        layout = self.generate_layout(z, metadata=layout, ema=ema, **kwargs)       
 
         gen_input = {
             'input': layout['feature_grid'],
@@ -430,7 +430,7 @@ class BlobGAN3D(BaseModule):
                 except AttributeError:
                     self.get_mean_latent(ema=ema)
                     noise = (self.mean_latent * truncate) + (noise * (1 - truncate))
-            metadata3d = layout_net(noise, num_features, mlp_idx)                   
+            metadata = layout_net(noise, num_features, mlp_idx)                   
 
         try:
             G = self.generator
@@ -438,32 +438,30 @@ class BlobGAN3D(BaseModule):
             G = self.generator_ema
 
         if ignore_dim is not None:
-            projection_map = {0:metadata3d['xyz'][...,1:], 1:metadata3d['xyz'][...,::2], 2:metadata3d['xyz'][...,:2]}
-            covs_map = {0:torch.cat((metadata3d['covs'][...,2:4], metadata3d['covs'][...,4:6]), dim=-1), 1:torch.cat((metadata3d['covs'][...,:2],metadata3d['covs'][...,6:8]), dim=-1), 2:torch.cat((metadata3d['covs'][...,2:4]/metadata3d['covs'][...,:2],metadata3d['covs'][...,8:10]), dim=-1)}
+            projection_map = {0:metadata['xyz'][...,1:], 1:metadata['xyz'][...,::2], 2:metadata['xyz'][...,:2]}
+            covs_map = {0:torch.cat((metadata['covs'][...,2:4], metadata['covs'][...,4:6]), dim=-1), 1:torch.cat((metadata['covs'][...,:2],metadata['covs'][...,6:8]), dim=-1), 2:torch.cat((metadata['covs'][...,2:4]/metadata['covs'][...,:2],metadata['covs'][...,8:10]), dim=-1)}
 
-            metadata2d = {
+            metadata = {
                 'xs':projection_map[ignore_dim][...,0],          # (4,3)
                 'ys':projection_map[ignore_dim][...,1],          # (4,3)
-                'sizes':metadata3d['sizes'],                     # (4,3)
+                'sizes':metadata['sizes'],                     # (4,3)
                 'covs':covs_map[ignore_dim],                     # (4,3,4)  
-                'features':metadata3d['features'],               # (4,4,768)
-                'spatial_style':metadata3d['spatial_style'],     # (4,4,512)
+                'features':metadata['features'],               # (4,4,768)
+                'spatial_style':metadata['spatial_style'],     # (4,4,512)
             }
-        else:
-            raise Exception('Input the dimension to ignore for 2D splatting')
 
 
-        ret = self.splat_features(**metadata2d, size=size or G.size_in, viz_size=viz_size or G.size,
+        ret = self.splat_features(**metadata, size=size or G.size_in, viz_size=viz_size or G.size,
                                   viz=viz, return_metadata=return_metadata, score_size=score_size or (size or G.size),
                                   pyramid=True,
                                   **kwargs)
 
         if self.spatial_style:
-            ret['spatial_style'] = metadata2d['spatial_style']
+            ret['spatial_style'] = metadata['spatial_style']
         if 'noise' in metadata2d:
-            ret['noise'] = metadata2d['noise']
+            ret['noise'] = metadata['noise']
         if 'h_stdev' in metadata2d:
-            ret['h_stdev'] = metadata2d['h_stdev']
+            ret['h_stdev'] = metadata['h_stdev']
         return ret
 
     def get_mean_latent(self, n_trunc: int = 10000, ema=True):
