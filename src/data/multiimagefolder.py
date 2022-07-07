@@ -41,10 +41,13 @@ class MultiImageFolderDataModule(LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         for split in ('train', 'validate', 'test'):
             try:
+                print("Base path: {}, categories: {}, split: {}".format(self.basepath, self.categories, split))
                 self.data[split] = MultiImageFolderWithFilenames(self.basepath, self.categories, split,
                                                              transform=self.transform)
             except FileNotFoundError:
                 print_once(f'Could not create dataset for split {split}')
+
+        print("Self data splits: {}".format(self.data.keys()))
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader('train')
@@ -68,6 +71,11 @@ class MultiImageFolderWithFilenames(Dataset):
 
     def __post_init__(self):
         super().__init__()
+        paths_ds = [os.path.join(self.basepath, c, self.split) for c in self.categories]
+        print("Path ds inside multi image folder with filename: {}".format(paths_ds))
+        for path in paths_ds:
+            print("Does path exists: {}, {}".format(path, os.path.exists(path))) 
+
         self.datasets = [ImageFolderWithFilenames(os.path.join(self.basepath, c, self.split), self.transform) for c in
                          self.categories]
         self._n_datasets = len(self.datasets)
