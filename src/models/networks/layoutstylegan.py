@@ -240,7 +240,7 @@ class SpatialToRGB(nn.Module):
 
     def forward(self, input, style, skip=None):
         out = self.conv(input, style)
-        out = out + self.bias
+        out = out + self.bias.to(out.device)
 
         if skip is not None:
             skip = self.upsample(skip)
@@ -363,7 +363,7 @@ class SpatialModulatedConv2d(nn.Module):
             else:
                 style = self.modulation(style).reshape(batch, in_channel, 1, 1)
 
-            weight = self.scale * self.weight.squeeze(0)
+            weight = self.scale * self.weight.squeeze(0).to(input.device)      # 
             input = input * style
 
             if self.demodulate:

@@ -1,8 +1,11 @@
 datasets/dump/
-datasets/CLEVR_v1.0/Camera.001/
-datasets/CLEVR_v1.0/images/train/
+datasets/CLEVR_v1.0/Camera/*
+datasets/CLEVR_v1.0/Camera.001/*
+datasets/CLEVR_v1.0/images/
 datasets/CLEVR_v1.0/samples/
 *.pyc
 __pycache__/
 logs/
+run.log
 .vscode/
+train_ddp_process_1.log

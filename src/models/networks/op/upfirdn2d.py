@@ -117,7 +117,7 @@ class UpFirDn2d(Function):
         ctx.g_pad = (g_pad_x0, g_pad_x1, g_pad_y0, g_pad_y1)
 
         out = upfirdn2d_op.upfirdn2d(
-            input.float(), kernel, up_x, up_y, down_x, down_y, pad_x0, pad_x1, pad_y0, pad_y1
+            input.float(), kernel.to(input.device), up_x, up_y, down_x, down_y, pad_x0, pad_x1, pad_y0, pad_y1
         ).to(input.dtype)
         # out = out.view(major, out_h, out_w, minor)
         out = out.view(-1, channel, out_h, out_w)

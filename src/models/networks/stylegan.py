@@ -48,7 +48,7 @@ class Upsample(nn.Module):
         self.pad = (pad0, pad1)
 
     def forward(self, input):
-        out = upfirdn2d(input, self.kernel, up=self.factor, down=1, pad=self.pad)
+        out = upfirdn2d(input, self.kernel.type_as(input), up=self.factor, down=1, pad=self.pad)
 
         return out
 
@@ -69,7 +69,7 @@ class Downsample(nn.Module):
         self.pad = (pad0, pad1)
 
     def forward(self, input):
-        out = upfirdn2d(input, self.kernel, up=1, down=self.factor, pad=self.pad)
+        out = upfirdn2d(input, self.kernel.type_as(input), up=1, down=self.factor, pad=self.pad)
 
         return out
 
@@ -88,7 +88,7 @@ class Blur(nn.Module):
         self.pad = pad
 
     def forward(self, input):
-        out = upfirdn2d(input, self.kernel, pad=self.pad)
+        out = upfirdn2d(input, self.kernel.type_as(input), pad=self.pad)
 
         return out
 
@@ -156,8 +156,8 @@ class EqualConv2d(nn.Module):
     def forward(self, input):
         out = conv2d_gradfix.conv2d(
             input,
-            self.weight * self.scale,
-            bias=self.bias,
+            self.weight.type_as(input) * self.scale,
+            bias=self.bias.type_as(input) if self.bias is not None else None,
             stride=self.stride,
             padding=self.padding,
         )
@@ -177,7 +177,7 @@ class EqualLinear(nn.Module):
     ):
         super().__init__()
 
-        self.weight = nn.Parameter(torch.randn(out_dim, in_dim).div_(lr_mul))
+        self.weight = nn.Parameter(torch.randn((out_dim, in_dim)).div_(lr_mul))
 
         if bias:
             self.bias = nn.Parameter(torch.zeros(out_dim).fill_(bias_init))
@@ -193,13 +193,14 @@ class EqualLinear(nn.Module):
     def forward(self, input):
         assert input.shape[-1] == self.weight.shape[-1], \
             f'Input shape {input.shape[-1]} != weight shape {self.weight.shape[-1]}'
+
         if self.activation:
-            out = F.linear(input, self.weight * self.scale)
-            out = fused_leaky_relu(out, self.bias * self.lr_mul)
+            out = F.linear(input, self.weight.type_as(input) * self.scale)
+            out = fused_leaky_relu(out, self.bias.type_as(out) * self.lr_mul)
 
         else:
             out = F.linear(
-                input, self.weight * self.scale, bias=self.bias * self.lr_mul if self.bias is not None else None
+                input, self.weight.type_as(input) * self.scale, bias=self.bias.type_as(input) * self.lr_mul if self.bias is not None else None
             )
 
         return out
@@ -357,7 +358,7 @@ class NoiseInjection(nn.Module):
             batch, _, height, width = image.shape
             noise = image.new_empty(batch, 1, height, width).normal_()
 
-        return image + self.weight * noise
+        return image + self.weight.to(image.device) * noise
 
 
 class ConstantInput(nn.Module):

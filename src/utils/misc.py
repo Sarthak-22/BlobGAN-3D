@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw
 from omegaconf import DictConfig
-from torch import Tensor
+from torch import Tensor, zeros
 from torch.nn import functional as F
 from torchvision.transforms.functional import to_tensor
 
@@ -67,6 +67,14 @@ def rotation_matrix(theta):
     sin = torch.sin(theta)
     return torch.stack([cos, sin, -sin, cos], dim=-1).view(*theta.shape, 2, 2)
 
+def rotation_matrix_3d(x, y, z):
+    ones = torch.ones(x.shape).to(x.device)
+    zeros = torch.zeros(x.shape).to(x.device)
+    Rx = torch.stack([ones, zeros, zeros, zeros, torch.cos(x), -torch.sin(x), zeros, torch.sin(x), torch.cos(x)], dim=-1).view(*x.shape, 3, 3)
+    Ry = torch.stack([torch.cos(y), zeros, torch.sin(y), zeros, ones, zeros, -torch.sin(y), zeros, torch.cos(y)], dim=-1).view(*y.shape, 3, 3)
+    Rz = torch.stack([torch.cos(z), -torch.sin(z), zeros, torch.sin(z), torch.cos(z), zeros, zeros, zeros, ones], dim=-1).view(*z.shape, 3, 3)
+    return Rx@Ry@Rz
+    
 
 def gaussian(window_size, sigma):
     def gauss_fcn(x):

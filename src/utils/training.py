@@ -78,13 +78,13 @@ def zero_module(module):
     return module
 
 
-def get_D_stats(key: str, scores: Tensor, gt: bool) -> Dict[str, Number]:
+def get_D_stats(key: str, scores: Tensor, gt: bool, view: str) -> Dict[str, Number]:
     acc = 100 * (scores > 0).sum() / len(scores)
     if not gt:
         acc = 100 - acc
     return {
-        f'score_{key}': scores.mean(),
-        f'acc_{key}': acc
+        f'{view}/score_{key}': scores.mean(),
+        f'{view}/acc_{key}': acc
     }
 
 

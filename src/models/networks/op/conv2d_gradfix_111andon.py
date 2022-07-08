@@ -123,6 +123,8 @@ def _conv2d_gradfix(transpose, weight_shape, stride, padding, output_padding, di
         @staticmethod
         def forward(ctx, input, weight, bias):
             assert weight.shape == weight_shape
+            weight = weight.type_as(input)
+            bias = bias.type_as(input) if bias is not None else None
             if not transpose:
                 output = torch.nn.functional.conv2d(input=input, weight=weight, bias=bias, **common_kwargs)
             else:  # transpose

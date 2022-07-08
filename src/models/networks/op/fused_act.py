@@ -63,7 +63,7 @@ class FusedLeakyReLUFunction(Function):
         if bias is None:
             bias = empty
 
-        out = fused.fused_bias_act(input.float(), bias, empty.float(), 3, 0, negative_slope, scale).to(input.dtype)
+        out = fused.fused_bias_act(input.float(), bias, empty.float(), 3, 0, negative_slope, scale).to(input.dtype) 
         ctx.save_for_backward(out)
         ctx.negative_slope = negative_slope
         ctx.scale = scale
@@ -98,7 +98,7 @@ class FusedLeakyReLU(nn.Module):
         self.scale = scale
 
     def forward(self, input):
-        return fused_leaky_relu(input, self.bias, self.negative_slope, self.scale)
+        return fused_leaky_relu(input, self.bias.type_as(input), self.negative_slope, self.scale)
 
 
 def fused_leaky_relu(input, bias=None, negative_slope=0.2, scale=2 ** 0.5):

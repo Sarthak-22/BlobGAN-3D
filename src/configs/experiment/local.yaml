@@ -1,6 +1,6 @@
 # @package _global_
 dataset:
-  basepath: datasets/CLEVR_v1.0/Camera.001  # Change to your path
+  basepath: datasets/CLEVR_v1.0/ # Change to your path
 trainer:
   gpus: 1  # Change to your number of GPUs
 wandb:  # Fill in your settings
