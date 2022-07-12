@@ -714,7 +714,7 @@ class ResBlock(nn.Module):
 
 
 class StyleGANDiscriminator(nn.Module):
-    def __init__(self, size, channel_multiplier=2, blur_kernel=[1, 3, 3, 1], discriminate_stddev=True, in_channels=3,
+    def __init__(self, size, channel_multiplier=2, blur_kernel=[1, 3, 3, 1], discriminate_stddev=True, in_channels=6,
                  blur_input=False, blur_kernel_size=3, blur_sigma=1, d_out=1):
         super().__init__()
         self.discriminate_stddev = discriminate_stddev

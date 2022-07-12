@@ -6,6 +6,7 @@ datasets/CLEVR_v1.0/samples/
 *.pyc
 __pycache__/
 logs/
-run.log
-.vscode/
+run.log 
+.vscode/launch.json
+.vscode/settings.json
 train_ddp_process_1.log
