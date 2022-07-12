@@ -731,7 +731,6 @@ class BlobGAN3D(BaseModule):
         gen_imgs_stacked = torch.cat((gen_imgs['top'], gen_imgs['front']), dim=-3)
         logits_fake = self.discriminator(gen_imgs_stacked)
     
-
         if train_G['top'] or not train:
             # Log
             losses['top/G'] = F.softplus(-logits_fake).mean()                          # check
