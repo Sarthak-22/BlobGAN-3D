@@ -4,4 +4,4 @@
 
 ![3D-Blob Architecture](architecture.png)
 
-#### In this experiment, we replace the above two discriminators with a single discriminator which takes the stacked real image (top & front view) as input and.
+#### In this experiment, we replace the above two discriminators with a single discriminator which takes stacked real image (top & front view) as input.
