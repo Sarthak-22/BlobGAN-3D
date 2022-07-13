@@ -1,5 +1,5 @@
 defaults:
   - imagefolder
-path: datasets/CLEVR_v1.0/ # Must have train, validate, test subfolders (validate/test can be empty)
+path: datasets/CLEVR_new/ # Must have train, validate, test subfolders (validate/test can be empty)
 dataloader:
   batch_size: 16

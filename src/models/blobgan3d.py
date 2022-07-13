@@ -171,40 +171,45 @@ class BlobGAN3D(BaseModule):
         req_grad = lambda l: [p for p in l if p.requires_grad]
         decay_params = []
 
-        G_top_params = [{'params': req_grad(self.generator['top'].parameters()), 'weight_decay': 0}, {
+        G_params = [{'params': req_grad(self.generator['top'].parameters()), 'weight_decay': 0}, {
             'params': [],
             'weight_decay': 0  # Legacy, dont remove :(
-        }, {
+        },   
+         {'params': req_grad(self.generator['front'].parameters()), 'weight_decay': 0}, 
+
+         {
                         'params': req_grad(
                             [p for p in self.layout_net.parameters() if not any([p is pp for pp in decay_params])]),
                         'weight_decay': 0
                     }]
 
-        G_front_params = [{'params': req_grad(self.generator['front'].parameters()), 'weight_decay': 0}, {
-            'params': [],
-            'weight_decay': 0  # Legacy, dont remove :(
-        }, {
-                        'params': req_grad(
-                            [p for p in self.layout_net.parameters() if not any([p is pp for pp in decay_params])]),
-                        'weight_decay': 0
-                    }]
+        # Replace 3 optimizers (G_Top, G_Front, D_12) with 2 optimizers (G_Top_Front, D_12)
+
+        # G_front_params = [{'params': req_grad(self.generator['front'].parameters()), 'weight_decay': 0}, {
+        #     'params': [],
+        #     'weight_decay': 0  # Legacy, dont remove :(
+        # }, {
+        #                 'params': req_grad(
+        #                     [p for p in self.layout_net.parameters() if not any([p is pp for pp in decay_params])]),
+        #                 'weight_decay': 0
+        #             }]
 
         D_12_params = req_grad(self.discriminator.parameters())
 
-        G_top_optim = torch.optim.AdamW(G_top_params, lr=self.lr * G_reg_ratio,
+        G_optim = torch.optim.AdamW(G_params, lr=self.lr * G_reg_ratio,
                                     betas=(0 ** G_reg_ratio, 0.99 ** G_reg_ratio), eps=self.eps, weight_decay=0)
-        G_front_optim = torch.optim.AdamW(G_front_params, lr=self.lr * G_reg_ratio,
-                                    betas=(0 ** G_reg_ratio, 0.99 ** G_reg_ratio), eps=self.eps, weight_decay=0)
+        # G_front_optim = torch.optim.AdamW(G_front_params, lr=self.lr * G_reg_ratio,
+        #                             betas=(0 ** G_reg_ratio, 0.99 ** G_reg_ratio), eps=self.eps, weight_decay=0)
 
         D_12_optim = torch.optim.AdamW(D_12_params, lr=self.lr * D_reg_ratio,
                                     betas=(0 ** D_reg_ratio, 0.99 ** D_reg_ratio), eps=self.eps, weight_decay=0)
 
-        print_once(f'Optimizing {sum([p.numel() for grp in G_top_params for p in grp["params"]]) / 1e6:.2f}M params for G Top '
-                   f'and {sum([p.numel() for p in D_12_params]) / 1e6:.2f}M params for D Top')
+        print_once(f'Optimizing {sum([p.numel() for grp in G_params for p in grp["params"]]) / 1e6:.2f}M params for G Top & Front'
+                   f'and {sum([p.numel() for p in D_12_params]) / 1e6:.2f}M params for stacked D')
         if self.freeze_G:
             return D_12_optim
         else:
-            return G_top_optim, G_front_optim , D_12_optim
+            return G_optim, D_12_optim
 
     def optimizer_step(
             self,
@@ -701,11 +706,8 @@ class BlobGAN3D(BaseModule):
             torch.cuda.empty_cache()
         # Set up modules and data
         train = mode == 'train'
-        train_G, train_D = {}, {}
-        train_G['top'] = train and optimizer_idx == 0 and not self.freeze_G
-        train_G['front'] = train and optimizer_idx == 1 and not self.freeze_G
-
-        train_D = train and (optimizer_idx == 2 or self.freeze_G)
+        train_G = train and optimizer_idx == 0 and not self.freeze_G
+        train_D = train and (optimizer_idx == 1 or self.freeze_G)
  
         batch_real = dict()
         batch_real['front'], batch_real['top'], batch_labels = batch
@@ -715,11 +717,8 @@ class BlobGAN3D(BaseModule):
 
         log_images = run_at_step(self.trainer.global_step, self.log_images_every_n_steps)   # decides whether to log images at a given step (%200=0)
         
-        # Ignore z dimension for top plane projection
         gen_imgs, latents = {}, {}
         layout, gen_imgs['top'], latents['top'], gen_imgs['front'], latents['front']  = self.gen(z, ret_layout=True, ret_latents=True, viz=log_images)
-
-        # ****
 
         if latents is not None and not self.spatial_style:
             if latents.ndim == 3:
@@ -731,9 +730,9 @@ class BlobGAN3D(BaseModule):
         gen_imgs_stacked = torch.cat((gen_imgs['top'], gen_imgs['front']), dim=-3)
         logits_fake = self.discriminator(gen_imgs_stacked)
     
-        if train_G['top'] or not train:
+        if train_G or not train:
             # Log
-            losses['top/G'] = F.softplus(-logits_fake).mean()                          # check
+            losses['G'] = F.softplus(-logits_fake).mean()                          # check
             if run_at_step(self.trainer.global_step, self.trainer.log_every_n_steps):
                 with torch.no_grad():
                     coords = torch.stack((layout['top']['xs'], layout['top']['ys']), -1)
@@ -747,11 +746,6 @@ class BlobGAN3D(BaseModule):
                         'top/shift_std': shift.std(-1).mean()
                     })
 
-        if train_G['front'] or not train:
-            # Log
-            losses['front/G'] = F.softplus(-logits_fake).mean()
-            if run_at_step(self.trainer.global_step, self.trainer.log_every_n_steps):
-                with torch.no_grad():
                     coords = torch.stack((layout['front']['xs'], layout['front']['ys']), -1)
                     centroids = coords.mean(1, keepdim=True)
                     # only consider spread of elements being used
@@ -791,16 +785,14 @@ class BlobGAN3D(BaseModule):
         }
 
         # Compute train regularization loss
-        if train_G['top'] and run_at_step(batch_idx, self.G_reg_every):
+        if train_G and run_at_step(batch_idx, self.G_reg_every):
             if self.λ.G_path:
-                z = mixing_noise(batch_real['top'], self.dim, self.p_mixing_noise)     # Change batch real for top
+                z = mixing_noise(batch_real['top'], self.dim, self.p_mixing_noise)     
                 gen_imgs, latents = self.generator['top'](z, return_latents=True)
                 losses['top/G_path'], self.path_len, info['top/G_path_len'] = G_path_loss(gen_imgs, latents, self.path_len)
                 losses['top/G_path'] = losses['top/G_path'] * self.G_reg_every
 
-        elif train_G['front'] and run_at_step(batch_idx, self.G_reg_every):
-            if self.λ.G_path:
-                z = mixing_noise(batch_real['front'], self.dim, self.p_mixing_noise)     # Change batch real for top
+                z = mixing_noise(batch_real['front'], self.dim, self.p_mixing_noise)     
                 gen_imgs, latents = self.generator['front'](z, return_latents=True)
                 losses['front/G_path'], self.path_len, info['front/G_path_len'] = G_path_loss(gen_imgs, latents, self.path_len)
                 losses['front/G_path'] = losses['front/G_path'] * self.G_reg_every
@@ -808,18 +800,14 @@ class BlobGAN3D(BaseModule):
         elif train_D and run_at_step(batch_idx, self.D_reg_every):
             if self.λ.D_R1:
                 with autocast(enabled=False):
-                    batch_real_stacked.requires_grad = True                                           # Change batch real for top
-                    logits_real = self.discriminator(batch_real_stacked)                # Change batch real for top
-                    R1 = D_R1_loss(logits_real, batch_real_stacked)                            # Change batch real for top
+                    batch_real_stacked.requires_grad = True                                           
+                    logits_real = self.discriminator(batch_real_stacked)                
+                    R1 = D_R1_loss(logits_real, batch_real_stacked)                            
                     info['D_R1_unscaled'] = R1
                     losses['D_R1'] = R1 * self.D_reg_every
 
         # Compute final loss and log
-        if train_G['top'] or train_G['front']:
-            total_loss = f'{"top" if train_G["top"] else "front"}/total_loss_G'
-        else:
-            total_loss = 'total_loss_D'
-            
+        total_loss = f'total_loss_{"G" if train_G else "D"}'    
         losses[total_loss] = sum(map(lambda k: losses[k] * self.λ[k], losses)) if train_D else \
                              sum(map(lambda k: losses[k] * self.λ[k.split('/')[-1]], losses))
 
@@ -834,7 +822,7 @@ class BlobGAN3D(BaseModule):
         # Further logging and terminate
 
         if mode == "train":
-            if train_G['top'] or train_G['front']:
+            if train_G:
                 if self.accumulate:
                     accumulate(self.generator_ema['top'], self.generator['top'], 0.5 ** (32 / (10 * 1000)))
                     accumulate(self.generator_ema['front'], self.generator['front'], 0.5 ** (32 / (10 * 1000)))

@@ -1,8 +1,4 @@
-datasets/dump/
-datasets/CLEVR_v1.0/Camera/*
-datasets/CLEVR_v1.0/Camera.001/*
-datasets/CLEVR_v1.0/images/
-datasets/CLEVR_v1.0/samples/
+datasets/
 *.pyc
 __pycache__/
 logs/
