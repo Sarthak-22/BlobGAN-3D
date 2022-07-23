@@ -9,7 +9,7 @@ from torchvision.transforms.functional import gaussian_blur
 
 from .op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d, conv2d_gradfix
 
-__all__ = ["StyleGANGenerator", "StyleGANDiscriminator"]
+__all__ = ["StyleGANGenerator", "StyleGANDiscriminator", "StyleGANStackedDiscriminator"]
 
 
 class PixelNorm(nn.Module):
@@ -779,4 +779,75 @@ class StyleGANDiscriminator(nn.Module):
         out = out.view(batch, -1)
         out = self.final_linear(out)
 
+        return out
+
+
+
+
+class StyleGANStackedDiscriminator(nn.Module):
+    def __init__(self, size, channel_multiplier=2, blur_kernel=[1, 3, 3, 1], discriminate_stddev=True, in_channels=3,
+                 blur_input=False, blur_kernel_size=3, blur_sigma=1, d_out=1):
+        super().__init__()
+        self.discriminate_stddev = discriminate_stddev
+        self.blur_input = blur_input
+        self.blur_kernel_size = blur_kernel_size
+        self.blur_sigma = blur_sigma
+
+        channels = {
+            4: 512 * channel_multiplier // 2,
+            8: 512 * channel_multiplier // 2,
+            16: 512 * channel_multiplier // 2,
+            32: 512 * channel_multiplier // 2,
+            64: 256 * channel_multiplier,
+            128: 128 * channel_multiplier,
+            256: 64 * channel_multiplier,
+            512: 32 * channel_multiplier,
+            1024: 16 * channel_multiplier,
+        }
+
+        convs = [ConvLayer(in_channels, channels[size], 1)]
+
+        log_size = int(math.log(size, 2))
+
+        in_channel = channels[size]
+
+        for i in range(log_size, 2, -1):
+            out_channel = channels[2 ** (i - 1)]
+
+            convs.append(ResBlock(in_channel, out_channel, blur_kernel))
+
+            in_channel = out_channel
+
+        self.convs = nn.Sequential(*convs)
+
+        self.stddev_group = 4
+        self.stddev_feat = 1
+
+        self.final_conv = ConvLayer(in_channel + (1 if discriminate_stddev else 0), channels[4], 3)
+        self.final_linear = nn.Sequential(
+            EqualLinear(channels[4] * 4 * 4 * 2, channels[4], activation="fused_lrelu"),
+            EqualLinear(channels[4], d_out),
+        )
+
+    def forward(self, input1, input2):
+        if self.blur_input:
+            input1 = gaussian_blur(input1, self.blur_kernel_size, self.blur_sigma)
+            input2 = gaussian_blur(input1, self.blur_kernel_size, self.blur_sigma)
+
+        out1, out2 = self.convs(input1), self.convs(input2)
+        batch, channel, height, width = out1.shape
+
+        if self.discriminate_stddev:
+            group = min(batch, self.stddev_group)
+            stddev1, stddev2 = out1.view(group, -1, self.stddev_feat, channel // self.stddev_feat, height, width), out2.view(group, -1, self.stddev_feat, channel // self.stddev_feat, height, width)
+            stddev1, stddev2 = torch.sqrt(stddev1.var(0, unbiased=False) + 1e-8), torch.sqrt(stddev2.var(0, unbiased=False) + 1e-8)
+            stddev1, stddev2 = stddev1.mean([2, 3, 4], keepdims=True).squeeze(2), stddev2.mean([2, 3, 4], keepdims=True).squeeze(2)
+            stddev1, stddev2 = stddev1.repeat(group, 1, height, width), stddev2.repeat(group, 1, height, width)
+            out1, out2 = torch.cat([out1, stddev1], 1), torch.cat([out2, stddev2], 1)
+
+        out1, out2 = self.final_conv(out1), self.final_conv(out2)
+    
+        out = torch.cat((out1, out2), dim=1)
+        out = out.view(batch, -1)
+        out = self.final_linear(out)
         return out

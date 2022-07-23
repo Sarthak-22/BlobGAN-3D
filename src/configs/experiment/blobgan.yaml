@@ -17,7 +17,7 @@ model:
   lr: 0.002
   dim: 512
   noise_dim: 512
-  resolution: 128
+  resolution: 64
   lambda: # Needed for convenience since can't input λ on command line
     D_real: 1
     D_fake: 1
@@ -27,7 +27,7 @@ model:
     G_feature_mean: 10
     G_feature_variance: 10
   discriminator:
-    name: StyleGANDiscriminator
+    name: StyleGANStackedDiscriminator
     size: ${model.resolution}
   generator:
     name: models.networks.layoutstylegan.LayoutStyleGANGenerator

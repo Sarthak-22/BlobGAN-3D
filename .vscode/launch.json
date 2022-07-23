@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "cwd" : "${workspaceFolder}",
-            "env": { "name":"CUDA_VISIBLE_DEVICES", "value":"1,2"},
+            "env": { "name":"CUDA_VISIBLE_DEVICES", "value":"3"},
             "args": ["+experiment=[blobgan,local,jitter]","dataset.dataloader.batch_size=16","logger=False", "+model.log_fid_every_epoch=false","dataset=multi_clevr", "+dataset.cameras=[Camera,Camera.001]", "+dataset.path=datasets/CLEVR_v1.0", "model.n_features=10"],
             "justMyCode": false
         }

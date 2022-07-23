@@ -2,7 +2,7 @@
 dataset:
   basepath: datasets/CLEVR_new/ # Change to your path
 trainer:
-  gpus: 2  # Change to your number of GPUs
+  gpus: 1  # Change to your number of GPUs
 wandb:  # Fill in your settings
   group: Experiments
   project: BlobGAN3D

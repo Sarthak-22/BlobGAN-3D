@@ -727,8 +727,12 @@ class BlobGAN3D(BaseModule):
             info['latent_stdev'] = latents.std(0).mean()
 
         # Compute various losses
-        gen_imgs_stacked = torch.cat((gen_imgs['top'], gen_imgs['front']), dim=-3)
-        logits_fake = self.discriminator(gen_imgs_stacked)
+        #gen_imgs_stacked = torch.cat((gen_imgs['top'], gen_imgs['front']), dim=-3)
+        #logits_fake = self.discriminator(gen_imgs_stacked)
+
+        # **
+        logits_fake = self.discriminator(gen_imgs['top'], gen_imgs['front'])
+        
     
         if train_G or not train:
             # Log
@@ -759,9 +763,12 @@ class BlobGAN3D(BaseModule):
 
 
         if train_D or not train:
-            # Discriminate real images
-            batch_real_stacked = torch.cat((batch_real['top'], batch_real['front']), dim=-3)
-            logits_real = self.discriminator(batch_real_stacked)  # Change batch real 
+            # # Discriminate real images
+            # batch_real_stacked = torch.cat((batch_real['top'], batch_real['front']), dim=-3)
+            # logits_real = self.discriminator(batch_real_stacked)  # Change batch real 
+
+            logits_real = self.discriminator(batch_real['top'], batch_real['front'])  # Change batch real 
+
             # Log
             losses['D_real'] = F.softplus(-logits_real).mean()
             losses['D_fake'] = F.softplus(logits_fake).mean()
@@ -800,11 +807,14 @@ class BlobGAN3D(BaseModule):
         elif train_D and run_at_step(batch_idx, self.D_reg_every):
             if self.λ.D_R1:
                 with autocast(enabled=False):
-                    batch_real_stacked.requires_grad = True                                           
-                    logits_real = self.discriminator(batch_real_stacked)                
-                    R1 = D_R1_loss(logits_real, batch_real_stacked)                            
-                    info['D_R1_unscaled'] = R1
-                    losses['D_R1'] = R1 * self.D_reg_every
+                    batch_real['top'].requires_grad, batch_real['front'].requires_grad = True, True                                        
+                    logits_real = self.discriminator(batch_real['top'], batch_real['front'])
+                    batch_real_stacked = torch.cat((batch_real['top'], batch_real['front']), dim=1)
+                    R1_top = D_R1_loss(logits_real, batch_real['top'])   
+                    R1_front = D_R1_loss(logits_real, batch_real['front'])   
+
+                    info['D_R1_unscaled'] = R1_top + R1_front
+                    losses['D_R1'] = (R1_top + R1_front) * self.D_reg_every
 
         # Compute final loss and log
         total_loss = f'total_loss_{"G" if train_G else "D"}'    
