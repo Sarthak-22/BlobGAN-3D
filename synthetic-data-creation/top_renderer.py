@@ -11,7 +11,8 @@ class renderer:
         self.road_color = [200,200,250]
         self.sw_color = [50,50,70-20]
         self.object_colors = [[100,100,200], [50,200,50], [200,100,100], [200,200,100]] # | left, right, top, bottom 
-        self.ped_color = [250, 250, 250]
+        self.ped_color = [250, 250, 250] # pedestrian colors 
+        self.build_color = [80, 80, 50] # building color for the background 
         self.x_threshold = int(canvas_size / 2)
         self.y_threshold = 0
 
@@ -34,13 +35,22 @@ class renderer:
         sidewalks = layout_param_properties['sidewalks']
         n_sidewalks = layout_param_properties['n_sidewalks']
 
+        # Locating the buildings in the background region to render realistc scenes 
+        building_location = layout_param_properties['building_locs']
+        n_buildings = layout_param_properties['n_buildings'] 
+
+        for id in range(0, n_buildings):
+            start_loc = (int(building_location[id][0][0] + self.x_threshold), int(building_location[id][0][1] + self.y_threshold))
+            end_loc = (int(building_location[id][1][0] + self.x_threshold), int(building_location[id][1][1] + self.y_threshold))
+            print("building start loc: {}, end loc: {}".format(start_loc, end_loc))
+            cv2.rectangle(self.canvas, start_loc, end_loc, color=self.build_color, thickness=-1) 
+
         for id in range(0, n_sidewalks):
             start_loc = (int(sidewalks[id][0][0] + self.x_threshold), int(sidewalks[id][0][1] + self.y_threshold))
             end_loc = (int(sidewalks[id][1][0] + self.x_threshold), int(sidewalks[id][1][1] + self.y_threshold))
             print("start loc: {}, end loc: {}".format(start_loc, end_loc))
             cv2.rectangle(self.canvas, start_loc, end_loc, color=self.sw_color, thickness=-1)
 
-        
         # Transforming the road coordinate system to camera coordinate system 
         mstart_loc = (main_road_start_location[0] + self.x_threshold, main_road_start_location[1] + self.y_threshold)
         mend_loc = (main_road_end_location[0] + self.x_threshold, main_road_end_location[1] + self.y_threshold)
@@ -147,12 +157,12 @@ class renderer:
 
 # Main function to test the functionality of each of the component 
 def run_main(): 
-    road_type =  'straight' # | 'straight'
+    road_type = 'intersect'
     object_size = [10,20] 
     ped_size = [4,4]
     n_lanes = 4
     n_per_lane = 5
-    n_ped_per_lane = 100
+    n_ped_per_lane = 10
 
     n_tries = 11
     for id in range(0, n_tries):

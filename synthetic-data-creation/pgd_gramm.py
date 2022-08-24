@@ -61,7 +61,7 @@ class road:
         self.lane_width = width / n_lanes
         self.road_type = road_type
         self.traffic_flow_dir = 0.4
-        self.ped_density = 0.8
+        self.ped_density = 0.4
         self.object_density = 0.5
 
         self.sw_size = self.lane_width // 2 # Side walk size is defined as the half of the lane size 
@@ -129,6 +129,10 @@ class road:
 
         # Initialize the sidewalks locations, so that it can be used directly later 
         self.sidewalks_locs = self.get_sidewalks_locs()
+
+        # Initialize the bulding locations, so that we can use them for rendering 
+        self.building_locs = self.get_building_locs()
+        self.n_buildings = len(self.building_locs)
             
     # This function will return the location for the sidewalks, Note that there is no orientation for the sidewalks, 
     # we can just return the start and the end location for the box 
@@ -173,6 +177,52 @@ class road:
 
         # Returning the sidewalks locations in both the cases defined based on the road types 
         return sidewalks_locs
+
+    # This function will create the boxes for the grass background in the scene to distinguish sky from building 
+    def get_building_locs(self):
+        building_locs = []
+        if (self.road_type == 'straight'):
+            #        |
+            #   bd1  |  bd2
+            #        |
+
+            bd1_start = (-int(self.length/2 - self.width/2), 0)
+            bd1_end = (0, self.length)
+            bd1 = [bd1_start, bd1_end]
+
+            bd2_start = (self.width,0)
+            bd2_end = (int(self.length/2 + self.width/2), self.length)
+            bd2 = [bd2_start, bd2_end]
+
+            building_locs = [bd1, bd2]
+
+        if (self.road_type == 'intersect'):
+            #        |
+            #    bd3 | bd4 
+            # ------- -------
+            #    bd1 | bd2
+            #        |
+
+            bd1_start = (-int(self.length/2 - self.width/2), 0)
+            bd1_end = (0, self.intersect_loc)
+            bd1 = [bd1_start, bd1_end]
+
+            bd2_start = (self.width, 0)
+            bd2_end = (int(self.length/2 + self.width/2), self.intersect_loc)
+            bd2 = [bd2_start, bd2_end]
+
+            bd3_start = (-int(self.length/2-self.width/2), self.intersect_loc + self.width)
+            bd3_end = (0, self.length)
+            bd3 = [bd3_start, bd3_end]
+
+            bd4_start = (self.width, self.intersect_loc + self.width)
+            bd4_end = (int(self.length/2 + self.width/2), self.length)
+            bd4 = [bd4_start, bd4_end]
+
+            building_locs = [bd1, bd2, bd3, bd4]
+
+        return building_locs
+            
 
     # This function will remove the objects from the given list based on the intersection regions provided     
     def remove_intersecting_objects(self, object_dict, intersect_region_x, intersect_region_y):
@@ -371,7 +421,9 @@ class road:
                            'start_i_road': start_location_i_road,
                            'end_i_road': end_location_i_road,
                            'n_sidewalks': self.n_sidewalks,
-                           'sidewalks': self.sidewalks_locs
+                           'sidewalks': self.sidewalks_locs,
+                           'n_buildings': self.n_buildings,
+                           'building_locs': self.building_locs, 
                            }  
         
         object_properties = {'object_size': self.object_size,
