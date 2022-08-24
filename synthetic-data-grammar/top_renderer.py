@@ -9,7 +9,9 @@ class renderer:
         self.canvas = np.ones((canvas_size, canvas_size, 3))*150.0 # Defining the image for drawing layouts and objects 
         self.canvas[:,:,1] = 250
         self.road_color = [200,200,250]
+        self.sw_color = [50,50,70-20]
         self.object_colors = [[100,100,200], [50,200,50], [200,100,100], [200,200,100]] # | left, right, top, bottom 
+        self.ped_color = [250, 250, 250]
         self.x_threshold = int(canvas_size / 2)
         self.y_threshold = 0
 
@@ -27,6 +29,17 @@ class renderer:
         main_road_end_location = layout_param_properties['end_main_road']
         i_road_start_location = layout_param_properties['start_i_road']
         i_road_end_location = layout_param_properties['end_i_road']
+
+        # Location of the sidewalks in the scene
+        sidewalks = layout_param_properties['sidewalks']
+        n_sidewalks = layout_param_properties['n_sidewalks']
+
+        for id in range(0, n_sidewalks):
+            start_loc = (int(sidewalks[id][0][0] + self.x_threshold), int(sidewalks[id][0][1] + self.y_threshold))
+            end_loc = (int(sidewalks[id][1][0] + self.x_threshold), int(sidewalks[id][1][1] + self.y_threshold))
+            print("start loc: {}, end loc: {}".format(start_loc, end_loc))
+            cv2.rectangle(self.canvas, start_loc, end_loc, color=self.sw_color, thickness=-1)
+
         
         # Transforming the road coordinate system to camera coordinate system 
         mstart_loc = (main_road_start_location[0] + self.x_threshold, main_road_start_location[1] + self.y_threshold)
@@ -66,12 +79,24 @@ class renderer:
 
             cv2.rectangle(self.canvas, start, end, color=color_box, thickness=-1)
 
-        else:
+        elif (lane == 'top'):
             color_box = self.object_colors[3]
             start = (int(object_locs[0] - (object_size[1]//2)) + self.x_threshold, int(object_locs[1] - (object_size[0]//2)) + self.y_threshold)
             end = (int(object_locs[0] + (object_size[1]//2)) + self.x_threshold, int(object_locs[1] + (object_size[0]//2)) + self.y_threshold)    
 
             cv2.rectangle(self.canvas, start, end, color=color_box, thickness=-1)
+        
+        elif (lane == 'sw'):
+            color_box = self.ped_color
+            start = (int(object_locs[0] - (object_size[1]//2)) + self.x_threshold, int(object_locs[1] - (object_size[1]//2)) + self.y_threshold)
+            end = (int(object_locs[0] + (object_size[1]//2)) + self.x_threshold, int(object_locs[1] + (object_size[0]//2)) + self.y_threshold)
+
+            circ_x = int(object_locs[0]) + self.x_threshold
+            circ_y = int(object_locs[1]) + self.y_threshold
+            rad = object_size[0] // 2
+
+            cv2.circle(self.canvas, (circ_x, circ_y), radius = rad, color=color_box, thickness=-1)
+            # cv2.rectangle(self.canvas, start, end, color=color_box, thickness=-1)
 
     # This function will render objects on a given lane based on the properties of the lane and the object location and size
     def render_lane_objects(self, object_locations_main):
@@ -84,20 +109,27 @@ class renderer:
             for oid in range(0, object_locs.shape[0]):
                 self.render_object(self.object_size, object_locs[oid, ...], lane) 
 
+    def render_sw_objects(self, ped_locations):
+        for swid in range(0, len(ped_locations)):
+            self.render_object(self.ped_size, ped_locations[swid], 'sw')  # Just pasing a filler for using as lane name for rendering 
+
     def render_objects(self, object_params_properties):
         # Sample object properties at a given location
         # {'object_size': [10, 20], 'object_locations_main': [{'left': [[6.0, 48.0], [6.0, 72.0]]}, {'right': [[16.5, 0.0], [18.5, 48.0]]}], 
         # 'object_locations_i': [{'bottom': array([[  0., 143.], [ 72., 142.]])}, {'top': array([[ 24. , 152.5], [ 48. , 155.5]])}]}}
 
         self.object_size = object_params_properties['object_size']
+        self.ped_size = object_params_properties['ped_size'] 
         self.object_locations_main = object_params_properties['object_locations_main']
         self.object_locations_i = object_params_properties['object_locations_i']
+        self.ped_locations = object_params_properties['ped_locations'] 
 
         # print("Object properties .......")
         print(object_params_properties)
 
         self.render_lane_objects(self.object_locations_main) # Rendering the objects on the main pathway 
         self.render_lane_objects(self.object_locations_i)  # Rendering the objects in the cross road
+        self.render_sw_objects(self.ped_locations) # Rendering the pederstrains in the sidewalks 
 
         self.filled_layout = self.canvas
         return self.filled_layout
@@ -115,24 +147,26 @@ class renderer:
 
 # Main function to test the functionality of each of the component 
 def run_main(): 
-    road_type = 'intersect' # 'straight'
+    road_type =  'straight' # | 'straight'
     object_size = [10,20] 
-    n_lanes = 2
+    ped_size = [4,4]
+    n_lanes = 4
     n_per_lane = 5
+    n_ped_per_lane = 100
 
-    n_tries = 10
+    n_tries = 11
     for id in range(0, n_tries):
         scene_layout = road_scene(road_type, object_size, n_lanes, n_per_lane)
-        scene_layout.fill_traffic(n_per_lane)
+        scene_layout.fill_traffic(n_per_lane, n_ped_per_lane, ped_size)
 
         rendering_params = scene_layout.get_render_properties()
         # print("Rendering parameters ................") 
-        # print(rendering_params)
+        # print(rendering_params['road_properties']['sidewalks'])
 
         print("Rendering scene: {}".format(id)) 
-        canvas_size = 300
+        canvas_size = 400
         rendering_engine = renderer(canvas_size)
-        save_path = './debug/combined_rendered_two_lanes_' + str(id) + '.png'
+        save_path = './debug/combined_rendered_{}_lanes_{}_road_type'.format(n_lanes, road_type) + str(id) + '.png'
         rendering_engine.render_scene(rendering_params['road_properties'], rendering_params['object_properties'], save_path)
 
 
