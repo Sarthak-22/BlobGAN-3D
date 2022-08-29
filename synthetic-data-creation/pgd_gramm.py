@@ -52,7 +52,7 @@ class lane:
         return success, np.array(object_locations)
 
 class road:
-    def __init__(self, width, length, n_lanes, object_size, road_type):
+    def __init__(self, width, length, n_lanes, object_size, road_type, object_density, ped_density):
         self.width = width
         self.length = length 
         self.n_lanes = n_lanes
@@ -61,8 +61,8 @@ class road:
         self.lane_width = width / n_lanes
         self.road_type = road_type
         self.traffic_flow_dir = 0.4
-        self.ped_density = 0.4
-        self.object_density = 0.5
+        self.ped_density = ped_density
+        self.object_density = object_density
 
         self.sw_size = self.lane_width // 2 # Side walk size is defined as the half of the lane size 
         # pdb.set_trace()
@@ -183,14 +183,14 @@ class road:
         building_locs = []
         if (self.road_type == 'straight'):
             #        |
-            #   bd1  |  bd2
+            #    bd1 |  bd2
             #        |
 
             bd1_start = (-int(self.length/2 - self.width/2), 0)
-            bd1_end = (0, self.length)
+            bd1_end = (-self.sw_size, self.length)
             bd1 = [bd1_start, bd1_end]
 
-            bd2_start = (self.width,0)
+            bd2_start = (self.width+self.sw_size,0)
             bd2_end = (int(self.length/2 + self.width/2), self.length)
             bd2 = [bd2_start, bd2_end]
 
@@ -204,18 +204,18 @@ class road:
             #        |
 
             bd1_start = (-int(self.length/2 - self.width/2), 0)
-            bd1_end = (0, self.intersect_loc)
+            bd1_end = (-self.sw_size, self.intersect_loc - self.sw_size)
             bd1 = [bd1_start, bd1_end]
 
-            bd2_start = (self.width, 0)
-            bd2_end = (int(self.length/2 + self.width/2), self.intersect_loc)
+            bd2_start = (self.width + self.sw_size, 0)
+            bd2_end = (int(self.length/2 + self.width/2), self.intersect_loc - self.sw_size)
             bd2 = [bd2_start, bd2_end]
 
-            bd3_start = (-int(self.length/2-self.width/2), self.intersect_loc + self.width)
-            bd3_end = (0, self.length)
+            bd3_start = (-int(self.length/2-self.width/2), self.intersect_loc + self.width + self.sw_size)
+            bd3_end = (-self.sw_size, self.length)
             bd3 = [bd3_start, bd3_end]
 
-            bd4_start = (self.width, self.intersect_loc + self.width)
+            bd4_start = (self.width + self.sw_size, self.intersect_loc + self.width + self.sw_size)
             bd4_end = (int(self.length/2 + self.width/2), self.length)
             bd4 = [bd4_start, bd4_end]
 
@@ -296,7 +296,11 @@ class road:
                         combined_peds.append(lane_objects_transformed)
         
         # Returning the combined set for all the pedestrians in the given sidewalks 
-        self.combined_peds = np.concatenate(combined_peds, axis=0)
+        # self.combined_peds = combined_peds
+        if (len(combined_peds) > 0):
+            self.combined_peds = np.concatenate(combined_peds, axis=0)
+        else:
+            self.combined_peds = combined_peds 
         return self.combined_peds, True  
 
 
@@ -366,8 +370,8 @@ class road:
             intersect_region_x = [0, self.width]
             intersect_region_y = [intersect_region_y_min, intersect_region_y_max]
 
-            print("Intersect region-x: {}".format(intersect_region_x))
-            print("Intersect region-y: {}".format(intersect_region_y))
+            # print("Intersect region-x: {}".format(intersect_region_x))
+            # print("Intersect region-y: {}".format(intersect_region_y))
             # set_trace()
 
             # We will remove the traffic from one of the roads based on a toss 
@@ -439,7 +443,7 @@ class road:
 
 # This class will define a road scene,by creating layout and additional things over the layout 
 class road_scene():
-    def __init__(self, road_type, object_size, n_lanes, n_per_lane):
+    def __init__(self, road_type, object_size, n_lanes, n_per_lane, object_density=0.5, ped_density=0.4):
         self.road_type = road_type
         self.object_size = object_size
 
@@ -451,7 +455,7 @@ class road_scene():
         self.n_per_lanes = n_per_lane
 
         # Defining the road layout with the given set of parameters
-        self.road_layout = road(self.width, self.length, n_lanes, object_size, road_type)
+        self.road_layout = road(self.width, self.length, n_lanes, object_size, road_type, object_density, ped_density)
 
     # This function will spawn the cars on the roads using the defined algorithmic logic 
     def fill_traffic(self, n_per_lane, n_ped_per_lane, ped_size):
@@ -474,7 +478,7 @@ def run_main():
     n_per_lane = 4
     n_ped_per_lane = 4
 
-    scene_layout = road_scene(road_type, object_size, n_lanes, n_per_lane)
+    scene_layout = road_scene(road_type, object_size, n_lanes, n_per_lane, object_density=0.1, ped_density=0.2)
     scene_layout.fill_traffic(n_per_lane, n_ped_per_lane, ped_size)  
 
     rendering_params = scene_layout.get_render_properties()
