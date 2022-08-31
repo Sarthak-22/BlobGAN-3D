@@ -203,7 +203,7 @@ def run_main():
     n_ped_per_lane = 15
 
 
-    n_tries = 101
+    n_tries = 10
     for id in range(0, n_tries):
         scene_layout = road_scene(road_type, object_size, n_lanes, n_per_lane, object_density=0.1, ped_density=0.2)
         scene_layout.fill_traffic(n_per_lane, n_ped_per_lane, ped_size)
