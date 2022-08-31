@@ -7,8 +7,8 @@ class lane:
         # Convention: x-coord - width, y-coord - length
         self.width = width
         self.length = length
-        self.buffer = 0.3 # fraction of object size to make space between two objects 
-        self.w_shift = 0.1 # fraction of the width by which the objects will be shifted along the x axis 
+        self.buffer = 0.5 # fraction of object size to make space between two objects 
+        self.w_shift = 0.2 # fraction of the width by which the objects will be shifted along the x axis 
         self.drop_chance = 1 - object_density # The drop chances are inversly correlated with the required object density
         # pdb.set_trace()
 
@@ -35,11 +35,11 @@ class lane:
             h_center = start_point + id * (self.object_h + self.object_h * self.buffer)  # Selecting the y coordinate
             
             # Randomly selecting a small region to shift the object withing that in x-direction 
-            # random_shift = random.randrange(-self.w_shift* self.object_w, self.w_shift* self.object_w)
-            random_shift = 0
+            random_shift = random.uniform(-self.w_shift* self.object_w, self.w_shift* self.object_w)
+            # random_shift = 0
             # Currently making the shift operation to be zero 
 
-            w_center = int(self.width // 2 + random_shift) # Selecting the x coordinate | Perturbing the x-center using some random value of fraction of object width 
+            w_center = int((self.width // 2) + random_shift) # Selecting the x coordinate | Perturbing the x-center using some random value of fraction of object width 
 
             dropping = np.random.binomial(1, self.drop_chance)
             if (not dropping == 1):
@@ -319,6 +319,10 @@ class road:
         # Spawning points in the main road layout 
         for id in range(0, self.n_lanes):
             success, lane_objects = self.lanes[id].spawn_points(self.object_size, self.n_per_lane)
+            
+            # Defining a new way to return empty list 
+            lane_side = self.sides[id]
+            object_bundle = {lane_side: []}
 
             # If there are objects present in the lane then only we will perform the postprocessing
             if (success):
@@ -327,8 +331,9 @@ class road:
 
                 # Transformation matrix | Adjusting for the shift from local to global coordinates 
                 lane_objects[:,0] += dc_offset 
-                lane_side = self.sides[id]
-                object_bundle = {lane_side: lane_objects}
+                object_bundle[lane_side] = lane_objects 
+            
+                # Append the object bundle without any condition, even if it is empty 
                 self.combined_objects.append(object_bundle)
 
         # Spawning points in the intersection or orthogonal road 
@@ -337,6 +342,10 @@ class road:
             for id in range(0, self.n_lanes):
                 success, lane_objects = self.lanes[id].spawn_points(self.object_size, self.n_per_lane)
                 
+                # Defining a new way to return empty list in the dictionary 
+                lane_side = self.i_sides[id]
+                object_bundle = {lane_side: []} 
+
                 # If there are objects present in the lane, then only we will perform post-processing over it
                 if (success):
                     dc_offset = self.lane_width * id # To account for multiple lanes on the road
@@ -357,8 +366,10 @@ class road:
 
                     lane_objects_transformed[:,1] += self.intersect_loc # Step 3 | shifting the lanes by a fixed dc value 
                     lane_objects_transformed[:,0] -= int((self.length / 2) - (self.width / 2)) # Step 4 | Adjusting the x-coordinate by shifting in negative x-direction 
-                    lane_side = self.i_sides[id]
-                    object_bundle = {lane_side: lane_objects_transformed}
+
+                    object_bundle[lane_side] = lane_objects_transformed
+
+                    # Add the object bundle in the list even if there are no objects spawned. 
                     self.combined_i_objects.append(object_bundle) 
     
         # If the road type is intersection, we have to filter out the cases where the two objects could interesect
@@ -448,7 +459,7 @@ class road_scene():
         self.object_size = object_size
 
         # For now we will define the width and the length of the road based on the given object size and randomly sampling from it 
-        self.width = random.randint(int(1.2*object_size[0]*n_lanes), 2.0*object_size[0]*n_lanes)
+        self.width = random.randint(int(1.5*object_size[0]*n_lanes), 2.0*object_size[0]*n_lanes)
         self.length = random.randint(16*object_size[1], 20*object_size[1])
 
         self.n_lanes = n_lanes

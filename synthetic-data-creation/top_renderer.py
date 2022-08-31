@@ -46,14 +46,11 @@ class renderer:
             # print("building start loc: {}, end loc: {}".format(start_loc, end_loc))
             cv2.rectangle(self.canvas, start_loc, end_loc, color=self.build_color, thickness=-1) 
 
-        # For now not rendering the sidewalks to verify the building locations 
-        """
         for id in range(0, n_sidewalks):
             start_loc = (int(sidewalks[id][0][0] + self.x_threshold), int(sidewalks[id][0][1] + self.y_threshold))
             end_loc = (int(sidewalks[id][1][0] + self.x_threshold), int(sidewalks[id][1][1] + self.y_threshold))
             # print("start loc: {}, end loc: {}".format(start_loc, end_loc))
             cv2.rectangle(self.canvas, start_loc, end_loc, color=self.sw_color, thickness=-1)
-        """
 
         # Transforming the road coordinate system to camera coordinate system 
         mstart_loc = (main_road_start_location[0] + self.x_threshold, main_road_start_location[1] + self.y_threshold)
@@ -206,7 +203,7 @@ def run_main():
     n_ped_per_lane = 15
 
 
-    n_tries = 11
+    n_tries = 101
     for id in range(0, n_tries):
         scene_layout = road_scene(road_type, object_size, n_lanes, n_per_lane, object_density=0.1, ped_density=0.2)
         scene_layout.fill_traffic(n_per_lane, n_ped_per_lane, ped_size)
@@ -214,6 +211,8 @@ def run_main():
         rendering_params = scene_layout.get_render_properties()
         # print("Rendering parameters ................") 
         # print(rendering_params['road_properties']['sidewalks'])
+
+        print("Object properties: {}".format(rendering_params))
 
         print("Rendering scene: {}".format(id)) 
         canvas_size = 350
